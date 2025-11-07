@@ -1,122 +1,68 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+// Fix: Implement the Gemini service to handle multimodal image generation.
+import { GoogleGenAI, Modality, InlineDataPart } from "@google/genai";
 
-// Ensure the API key is available in the environment variables
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey });
+// As per guidelines, initialize with API key from environment variables.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * Generates a beauty-themed image using the Gemini API (Imagen model).
- * @param userPrompt The user's description of the desired image.
- * @returns A promise that resolves to a base64 data URL of the generated image.
+ * Generates an enhanced beauty portrait from an uploaded image and a text prompt.
+ * @param prompt The text description of the desired enhancements for the subject.
+ * @param backgroundPrompt Optional text description for the desired background.
+ * @param imagePart The user's uploaded image as a Gemini InlineDataPart.
+ * @returns A data URL (base64) of the generated image.
  */
-export async function generateBeautyImage(userPrompt: string): Promise<string> {
-  // Enhance the user prompt for better results
-  const fullPrompt = `A photorealistic beauty portrait of ${userPrompt}, high fashion, intricate details, professional lighting, 8k, hyper-realistic`;
-
+export const generateBeautyPortraitFromImage = async (
+  prompt: string, 
+  backgroundPrompt: string, 
+  imagePart: InlineDataPart
+): Promise<string> => {
   try {
-    console.log("Generating image with prompt:", fullPrompt);
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt: fullPrompt,
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/jpeg',
-        // A 3:4 aspect ratio is great for portraits
-        aspectRatio: '3:4',
-      },
-    });
+    // Construct a detailed, multi-step prompt for the model.
+    const fullPrompt = `
+      Enhance this photo into a stunning, professional beauty portrait. Follow these instructions carefully and in order.
 
-    // Check if images were generated
-    if (!response.generatedImages || response.generatedImages.length === 0) {
-      throw new Error("The API did not return any images.");
-    }
+      **A. Core Image Corrections (Apply these ALWAYS, before the user's style):**
+      1.  **Perfect Lighting:** Analyze the lighting on the subject. If any areas are underexposed or too dark, intelligently brighten them to reveal detail without washing them out. If any areas are overexposed or have harsh highlights, recover the detail and balance them. The final lighting on the subject should be even, flattering, and perfectly exposed.
+      2.  **Subject Sharpening:** If the subject in the original photo appears slightly blurry or soft, apply a natural-looking sharpening effect to make them crisp and clear. Focus the sharpening on key features like the eyes, lips, and hair. Avoid creating artificial halos or over-sharpening.
+      3.  **Natural Color Balance:** Ensure the final image has natural, true-to-life colors. Skin tones must be accurate and healthy-looking. The overall color balance should be similar to a high-quality photograph from a flagship smartphone (like an iPhone) under optimal lighting conditions—vibrant but realistic and not oversaturated.
 
-    const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-    
-    // Check if the image data is valid
-    if (!base64ImageBytes) {
-      throw new Error("The API returned an empty image.");
-    }
-
-    // Return the image as a data URL
-    const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
-    return imageUrl;
-
-  } catch (error) {
-    console.error("Error generating image:", error);
-    // Provide a more user-friendly error message
-    if (error instanceof Error && error.message.includes('API key not valid')) {
-       throw new Error("The provided API key is not valid. Please check your configuration.");
-    }
-    throw new Error("Failed to generate image due to an API error.");
-  }
-}
-
-
-/**
- * Retouches an image using the Gemini API based on specified settings.
- * @param base64ImageData The base64 encoded string of the image to retouch.
- * @param mimeType The MIME type of the image.
- * @param settings The retouch settings for smoothing, brightening, and whitening.
- * @returns A promise that resolves to a base64 data URL of the retouched image.
- */
-export async function retouchBeautyImage(
-  base64ImageData: string,
-  mimeType: string,
-  settings: { smoothing: number; brightening: number; whitening: number }
-): Promise<string> {
-  const { smoothing, brightening, whitening } = settings;
-
-  const prompt = `
-    Perform a professional, photorealistic beauty retouch on this portrait.
-    - Apply skin smoothing with an intensity of ${smoothing}%. Focus on creating a natural, healthy-looking texture, not an artificial or plastic look.
-    - Brighten the eyes with an intensity of ${brightening}%. Enhance the catchlights and add subtle sparkle to make them pop.
-    - Whiten the teeth with an intensity of ${whitening}%. The result should be a natural, clean white, not an overly bright or artificial shade.
-    Preserve all other details of the original image, including hair texture, background, and clothing. The enhancements should be subtle and blend seamlessly.
-  `;
-
-  try {
-    console.log("Retouching image with settings:", settings);
+      **B. User-Requested Style (Apply AFTER core corrections):**
+      1.  **Subject Enhancement:** Apply the following artistic style to the person in the photo: "${prompt}". It is absolutely crucial to maintain the original person's facial features and identity. Only enhance their quality and style according to this specific prompt.
+      ${backgroundPrompt 
+        ? `2. **Background Replacement:** Replace the original background with this scene: "${backgroundPrompt}". Ensure the lighting, shadows, and color temperature on the subject match the new background seamlessly for a realistic composition.` 
+        : ''
+      }
+      
+      Execute these steps to produce the final, high-quality image.
+    `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64ImageData,
-              mimeType: mimeType,
-            },
-          },
-          {
-            text: prompt,
-          },
-        ],
-      },
-      config: {
-        responseModalities: [Modality.IMAGE],
-      },
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [
+            imagePart,
+            { text: fullPrompt.trim() }
+          ]
+        },
+        config: {
+          // Per guidelines, specify IMAGE as the response modality.
+          responseModalities: [Modality.IMAGE],
+        },
     });
 
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const base64ImageBytes: string = part.inlineData.data;
-        const imageMimeType: string = part.inlineData.mimeType;
-        return `data:${imageMimeType};base64,${base64ImageBytes}`;
-      }
+    // Per guidelines, find the image part in the response.
+    const imageResponsePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+
+    if (!imageResponsePart?.inlineData) {
+        throw new Error("No image data received from the API.");
     }
+    
+    const base64ImageBytes = imageResponsePart.inlineData.data;
+    const mimeType = imageResponsePart.inlineData.mimeType;
 
-    throw new Error("The API did not return an image after retouching.");
-
+    return `data:${mimeType};base64,${base64ImageBytes}`;
   } catch (error) {
-    console.error("Error retouching image:", error);
-    if (error instanceof Error && error.message.includes('API key not valid')) {
-       throw new Error("The provided API key is not valid. Please check your configuration.");
-    }
-    throw new Error("Failed to retouch image due to an API error.");
+    console.error("Error generating image:", error);
+    throw new Error("Failed to generate image from Gemini API.");
   }
-}
+};

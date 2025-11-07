@@ -1,5 +1,5 @@
 {
-  "name": "Copy of AI Beauty Portrait Generator",
-  "description": "Generate stunning, photorealistic beauty portraits using AI. Simply describe the look you want, and let the AI bring your vision to life with the power of Imagen 4.",
+  "name": "AI Beauty Portrait Generator",
+  "description": "Upload your photo and describe your vision. The AI will generate a stunning, enhanced beauty portrait while keeping your unique facial features consistent.",
   "requestFramePermissions": []
 }
