@@ -1,5 +1,6 @@
 // Fix: Implement the Gemini service to handle multimodal image generation.
-import { GoogleGenAI, Modality, InlineDataPart } from "@google/genai";
+// Fix: Removed non-existent `InlineDataPart` from import.
+import { GoogleGenAI, Modality } from "@google/genai";
 
 // As per guidelines, initialize with API key from environment variables.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -16,7 +17,8 @@ export const generateBeautyPortraitFromImage = async (
   prompt: string, 
   backgroundPrompt: string, 
   aspectRatio: string,
-  imagePart: InlineDataPart
+  // Fix: Replaced non-existent `InlineDataPart` with an inline object type.
+  imagePart: { inlineData: { data: string; mimeType: string; } }
 ): Promise<string> => {
   try {
     // Construct a detailed, multi-step prompt for the model.
