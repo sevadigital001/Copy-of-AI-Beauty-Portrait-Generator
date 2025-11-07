@@ -16,6 +16,48 @@
   }
 }
 </script>
+<style>
+    /* Custom styles for range inputs */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      background: #374151; /* gray-700 */
+      border-radius: 9999px;
+      outline: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    input[type="range"]:hover {
+      opacity: 1;
+    }
+
+    /* Thumb for Webkit browsers (Chrome, Safari, Opera) */
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #a855f7; /* purple-500 */
+      cursor: pointer;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 5px rgba(168, 85, 247, 0.7);
+    }
+
+    /* Thumb for Firefox */
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #a855f7; /* purple-500 */
+      cursor: pointer;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 5px rgba(168, 85, 247, 0.7);
+    }
+</style>
 </head>
   <body class="bg-gray-900">
     <div id="root"></div>
