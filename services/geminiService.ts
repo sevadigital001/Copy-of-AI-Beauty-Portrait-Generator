@@ -8,12 +8,14 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
  * Generates an enhanced beauty portrait from an uploaded image and a text prompt.
  * @param prompt The text description of the desired enhancements for the subject.
  * @param backgroundPrompt Optional text description for the desired background.
+ * @param aspectRatio Optional desired aspect ratio for the final image (e.g., "1:1", "9:16").
  * @param imagePart The user's uploaded image as a Gemini InlineDataPart.
  * @returns A data URL (base64) of the generated image.
  */
 export const generateBeautyPortraitFromImage = async (
   prompt: string, 
   backgroundPrompt: string, 
+  aspectRatio: string,
   imagePart: InlineDataPart
 ): Promise<string> => {
   try {
@@ -30,6 +32,10 @@ export const generateBeautyPortraitFromImage = async (
       1.  **Subject Enhancement:** Apply the following artistic style to the person in the photo: "${prompt}". It is absolutely crucial to maintain the original person's facial features and identity. Only enhance their quality and style according to this specific prompt.
       ${backgroundPrompt 
         ? `2. **Background Replacement:** Replace the original background with this scene: "${backgroundPrompt}". Ensure the lighting, shadows, and color temperature on the subject match the new background seamlessly for a realistic composition.` 
+        : ''
+      }
+      ${aspectRatio
+        ? `3. **Aspect Ratio:** The final output image MUST have an aspect ratio of exactly ${aspectRatio}. Intelligently crop or extend the scene (content-aware fill) to fit this new shape. The subject must remain the primary focus and should not be awkwardly cropped.`
         : ''
       }
       

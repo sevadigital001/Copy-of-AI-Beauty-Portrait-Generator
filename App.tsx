@@ -62,10 +62,19 @@ const backgroundPresets = [
     { name: 'Abstract Light Trails', prompt: 'an abstract background of colorful, glowing light trails, creating a dynamic and energetic feel.' },
 ];
 
+const aspectRatios = [
+    { name: 'Square (1:1)', value: '1:1' },
+    { name: 'Portrait (3:4)', value: '3:4' },
+    { name: 'Landscape (4:3)', value: '4:3' },
+    { name: 'Story (9:16)', value: '9:16' },
+    { name: 'Widescreen (16:9)', value: '16:9' },
+];
+
 
 const App: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [selectedBackgroundPrompt, setSelectedBackgroundPrompt] = useState<string>('');
+  const [aspectRatio, setAspectRatio] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -102,6 +111,10 @@ const App: React.FC = () => {
   const handleBackgroundPresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedBackgroundPrompt(event.target.value);
   };
+  
+  const handleAspectRatioChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setAspectRatio(event.target.value);
+  };
 
   const handleSubmit = async () => {
     if (!prompt || !uploadedFile) {
@@ -114,7 +127,7 @@ const App: React.FC = () => {
 
     try {
       const imagePart = await fileToGenerativePart(uploadedFile);
-      const imageUrl = await generateBeautyPortraitFromImage(prompt, selectedBackgroundPrompt, imagePart);
+      const imageUrl = await generateBeautyPortraitFromImage(prompt, selectedBackgroundPrompt, aspectRatio, imagePart);
       setGeneratedImage(imageUrl);
     } catch (err) {
       setError('An error occurred while generating the image. Please try again.');
@@ -242,6 +255,19 @@ const App: React.FC = () => {
                 {backgroundPresets.map(p => <option key={p.name} value={p.prompt}>{p.name}</option>)}
               </select>
             </div>
+            
+            <div className="flex flex-col gap-2">
+              <label htmlFor="aspect-ratio" className="font-semibold text-lg">4. (Optional) Set Aspect Ratio</label>
+              <select 
+                id="aspect-ratio"
+                onChange={handleAspectRatioChange}
+                disabled={loading}
+                className="w-full bg-gray-700 text-white rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">Keep original aspect ratio...</option>
+                {aspectRatios.map(p => <option key={p.name} value={p.value}>{p.name}</option>)}
+              </select>
+            </div>
 
             <button
               onClick={handleSubmit}
@@ -281,7 +307,7 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center gap-2">
                   <h2 className="text-xl font-bold text-purple-400">After</h2>
                   <div 
-                    className="bg-gray-800 rounded-lg shadow-2xl aspect-square flex items-center justify-center p-2 w-full group overflow-hidden"
+                    className="bg-gray-800 rounded-lg shadow-2xl flex items-center justify-center p-2 w-full group overflow-hidden min-h-[300px]"
                     onClick={() => generatedImage && openZoom(generatedImage)}
                     >
                       {loading ? (
@@ -293,7 +319,7 @@ const App: React.FC = () => {
                           <img 
                           src={generatedImage} 
                           alt="Generated AI beauty portrait" 
-                          className="w-full h-full object-contain rounded-md group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                          className="w-full h-auto object-contain rounded-md group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
                           />
                       ) : (
                           <div className="text-center text-gray-500 p-4">
