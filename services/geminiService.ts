@@ -3,7 +3,14 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // As per guidelines, initialize with API key from environment variables.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let apiKey = localStorage.getItem("GEMINI_API_KEY");
+if (!apiKey) {
+  apiKey = prompt("Masukkan Gemini API Key kamu:");
+  localStorage.setItem("GEMINI_API_KEY", apiKey);
+}
+
+const ai = new GoogleGenAI({ apiKey });
+
 
 /**
  * Generates an enhanced beauty portrait from an uploaded image and a text prompt.
