@@ -87,6 +87,47 @@ const DownloadIcon: React.FC<DownloadIconProps> = ({ className }) => (
   </svg>
 );
 
+const ApiKeyModal = ({ onSave, error }: { onSave: (key: string) => void; error: string | null }) => {
+    const [inputKey, setInputKey] = useState("");
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 font-sans">
+            <div className="bg-gray-800 rounded-lg shadow-2xl p-8 max-w-lg w-full border border-purple-500 text-white">
+                <h2 className="text-2xl font-bold text-purple-400 mb-4">Enter Your Gemini API Key</h2>
+                <p className="text-gray-400 mb-6">
+                    To use this application, you need to provide your own Google Gemini API key. Your key is stored only in your browser's local storage.
+                </p>
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="apiKeyInput" className="font-semibold">API Key</label>
+                    <input
+                        id="apiKeyInput"
+                        type="password"
+                        value={inputKey}
+                        onChange={(e) => setInputKey(e.target.value)}
+                        placeholder="Enter your API key here"
+                        className="w-full bg-gray-700 text-white rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        aria-describedby="error-message"
+                    />
+                </div>
+                {error && <p id="error-message" className="text-red-500 text-sm mt-2">{error}</p>}
+                <p className="text-gray-500 text-sm mt-4">
+                    You can get your API key from{" "}
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">
+                        Google AI Studio
+                    </a>.
+                </p>
+                <button
+                    onClick={() => onSave(inputKey)}
+                    className="w-full mt-6 py-3 px-4 bg-purple-600 rounded-lg font-bold text-lg hover:bg-purple-500 disabled:bg-gray-600 transition-colors"
+                    disabled={!inputKey}
+                >
+                    Save and Continue
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // =================================================================================
 // GEMINI SERVICE
 // =================================================================================
@@ -214,6 +255,7 @@ const aspectRatios = [
 const App: React.FC = () => {
   const [ai, setAi] = useState<GoogleGenAI | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   
   const [prompt, setPrompt] = useState<string>('');
   const [selectedBackgroundPrompt, setSelectedBackgroundPrompt] = useState<string>('');
@@ -233,16 +275,39 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    try {
-      if (typeof process === 'undefined' || !process.env || !process.env.API_KEY) {
-        throw new Error("API_KEY environment variable not found.");
+    const key = localStorage.getItem("GEMINI_API_KEY") || (typeof process !== 'undefined' && process.env.API_KEY) || null;
+    if (key) {
+      try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+        setAi(genAI);
+      } catch (e: any) {
+        console.error("Failed to initialize GoogleGenAI:", e.message);
+        setApiKeyError("The stored API key is invalid. Please enter a new one.");
+        localStorage.removeItem("GEMINI_API_KEY");
+        setShowApiKeyModal(true);
       }
-      setAi(new GoogleGenAI({ apiKey: process.env.API_KEY }));
-    } catch (e: any) {
-      console.error("Failed to initialize GoogleGenAI:", e.message);
-      setApiKeyError("Configuration Error: The API key is missing. Please set the `API_KEY` environment variable in your Netlify deployment settings and then redeploy your site.");
+    } else {
+      setShowApiKeyModal(true);
     }
   }, []);
+
+  const handleApiKeySave = (key: string) => {
+    if (!key.trim()) {
+        setApiKeyError("API Key cannot be empty.");
+        return;
+    }
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+        setAi(genAI);
+        localStorage.setItem("GEMINI_API_KEY", key);
+        setShowApiKeyModal(false);
+        setApiKeyError(null);
+    } catch(e: any) {
+        console.error("Failed to initialize GoogleGenAI with new key:", e.message);
+        setApiKeyError("The provided API key is invalid. Please check and try again.");
+        setAi(null);
+    }
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -301,17 +366,9 @@ const App: React.FC = () => {
   const handleMouseDown = (e: MouseEvent) => { if (scale <= 1) return; setIsDragging(true); setStartDrag({ x: e.clientX - position.x, y: e.clientY - position.y }); (e.target as HTMLElement).style.cursor = 'grabbing'; };
   const handleMouseMove = (e: MouseEvent) => { if (!isDragging || scale <= 1) return; setPosition({ x: e.clientX - startDrag.x, y: e.clientY - startDrag.y }); };
   const handleMouseUp = (e: MouseEvent) => { setIsDragging(false); (e.target as HTMLElement).style.cursor = scale > 1 ? 'grab' : 'zoom-in'; };
-
-  if (apiKeyError) {
-    return (
-      <div className="bg-gray-900 min-h-screen text-white font-sans flex items-center justify-center p-4">
-        <div className="container mx-auto max-w-3xl text-center bg-gray-800 p-8 rounded-lg shadow-2xl border border-red-500">
-          <h1 className="text-3xl font-bold mb-4 text-red-400">Deployment Configuration Error</h1>
-          <p className="text-lg text-gray-300 mb-6">{apiKeyError}</p>
-          <p className="text-gray-400">For more information, please refer to the Netlify documentation on how to add environment variables to your site.</p>
-        </div>
-      </div>
-    );
+  
+  if (showApiKeyModal) {
+    return <ApiKeyModal onSave={handleApiKeySave} error={apiKeyError} />;
   }
 
   if (!ai) {
@@ -366,6 +423,11 @@ const App: React.FC = () => {
               {loading ? <><LoadingSpinner className="w-6 h-6" /> Generating...</> : 'Generate Portrait'}
             </button>
             {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+            <div className="mt-4 text-center">
+                <button onClick={() => setShowApiKeyModal(true)} className="text-sm text-gray-400 hover:text-purple-400 underline transition-colors">
+                    Change API Key
+                </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col items-center gap-2">
